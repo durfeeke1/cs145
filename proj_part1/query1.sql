@@ -1,0 +1,2 @@
+Select Count(*) From User;
+

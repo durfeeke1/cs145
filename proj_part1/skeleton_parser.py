@@ -131,17 +131,33 @@ def printXmlNode(node):
     print node.toxml()
 
 def write_element(element, outfile):
-    
     if "" == element:
         outfile.write("NULL")
     else:
         outfile.write(element)
 
+def duplicate(line, outfile):
+    for file_line in outfile:
+        if line == file_line:
+            return True
+    return False
+                
+
 def printArrayToFile(array, outfile):
-    
+    i=0
+    line = "" 
+    for element in array:
+        if 0==1:
+            line = element
+        else:
+            line = line + columnSeparator
+            line = line + element
+
+    #if(duplicate(line, outfile)):
+    #    return False 
+
     i=0
     for element in array:
-        print element 
         if 0==i:
             write_element(element, outfile)
             i=1
@@ -149,6 +165,8 @@ def printArrayToFile(array, outfile):
             outfile.write(columnSeparator)
             write_element(element, outfile)
     outfile.write("\n")
+
+    return True
 
 def printUser(user_array, outfile, debug):
     if debug:
@@ -196,13 +214,14 @@ def parseItem(item_xml,seller_id, out_file, debug):
     item_id = item_xml.getAttributeNode("ItemID").nodeValue
     name = getElementTextByTagNameNR(item_xml, "Name")
     description = getElementTextByTagNameNR(item_xml, "Description")
-    num_of_bids = getElementTextByTagNameNR(item_xml, "Number_Of_Bids")
+    num_of_bids = getElementTextByTagNameNR(item_xml, "Number_of_Bids")
 
     if debug:
         print "item_id: ", item_id
         print "name: ", name
         print "description: ", description
         print "num_of_bids: ", num_of_bids
+
 
     item_array = [item_id,seller_id, name, description, num_of_bids]
     printArrayToFile(item_array, out_file)    
@@ -287,7 +306,7 @@ def parseBid(item_xml,bid_xml, bidder_xml, out_file, debug):
     time = getElementTextByTagNameNR(bid_xml, "Time")
     amount = getElementTextByTagNameNR(bid_xml, "Amount")
 
-    bid_array = [item_id, bidder_id, time, amount]
+    bid_array = [item_id, bidder_id, transformDttm(time), transformDollar(amount)]
 
     printArrayToFile(bid_array, out_file)
     
@@ -302,27 +321,35 @@ def parseXml(f):
     """
     out_file_dic = {}
     
-    out_file_n = os.path.basename(f)
-    out_file_n = out_file_n[0:-4]+"-SQLBULK"
+    #out_file_n = os.path.basename(f)
+    out_file_n = "items-SQLBULK"
     #print "Creating User  Output File: ", out_file_n
+
+    open_type = "a"
     user_file_n = out_file_n+"_USERS.dat"
-    user_file = open(user_file_n, "w")
+    open(user_file_n, 'a').close()
+    user_file = open(user_file_n, open_type)
     out_file_dic["user"]=user_file
 
     cat_file_n = out_file_n+"_CAT.dat"
-    out_file_dic["cat"] = open(cat_file_n, "w")
+    open(cat_file_n, 'a').close()
+    out_file_dic["cat"] = open(cat_file_n, open_type)
 
     price_file_n = out_file_n+"_PRICE.dat"
-    out_file_dic["price"] = open(price_file_n, "w")
+    open(price_file_n, 'a').close()
+    out_file_dic["price"] = open(price_file_n, open_type)
 
     time_file_n = out_file_n+"_TIME.dat"
-    out_file_dic["time"] = open(time_file_n, "w")
+    open(time_file_n, 'a').close()
+    out_file_dic["time"] = open(time_file_n, open_type)
 
     item_file_n = out_file_n+"_ITEM.dat"
-    out_file_dic["item"] = open(item_file_n, "w")
+    open(item_file_n, 'a').close()
+    out_file_dic["item"] = open(item_file_n, open_type)
 
     bid_file_n = out_file_n+"_BID.dat"
-    out_file_dic["bid"] = open(bid_file_n, "w")
+    open(bid_file_n, 'a').close()
+    out_file_dic["bid"] = open(bid_file_n, open_type)
 
     print "Parsing XML Document..."
 
@@ -335,11 +362,13 @@ def parseXml(f):
 
     print "Parsing Item Array"
     
-    debug =  6
+    debug =  0
     for item in item_xml_array:
-        parseItemRelations(item, out_file_dic, 0)
+        parseItemRelations(item, out_file_dic, False)
         debug = debug + 1
 
+    for file in out_file_dic:
+        out_file_dic[file].close()
 
 """
 Loops through each xml files provided on the command line and passes each file
