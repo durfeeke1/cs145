@@ -1,4 +1,4 @@
--- description: These triggers make sure that the Bid Time is after the Start Time and before the End Time of the auction
+-- description: These triggers make sure that the Bid ItemTime is after the Start ItemTime and before the End ItemTime of the auction
 PRAGMA foreign_keys = ON;
 --insert on bids
 drop trigger if exists correct_bid_time;
@@ -9,7 +9,7 @@ FOR EACH ROW
 BEGIN
    SELECT RAISE(rollback, 'Error Inserting Into Bids')
    WHERE  EXISTS (
-   SELECT * FROM Time WHERE Time.ItemID = New.ItemID and (datetime(New.Time) < datetime(Time.Started) or datetime(New.Time)>datetime(Time.Ends)));
+   SELECT * FROM ItemTime WHERE ItemTime.ItemID = New.ItemID and (datetime(New.ItemTime) < datetime(ItemTime.Started) or datetime(New.ItemTime)>datetime(ItemTime.Ends)));
 END;
 
 --update on bids
@@ -21,32 +21,32 @@ FOR EACH ROW
 BEGIN
    SELECT RAISE(rollback, 'Error Updating Bids')
    WHERE  EXISTS (
-   SELECT * FROM Time WHERE Time.ItemID = New.ItemID and (datetime(New.Time) < datetime(Time.Started) or datetime(New.Time)>datetime(Time.Ends)));
+   SELECT * FROM ItemTime WHERE ItemTime.ItemID = New.ItemID and (datetime(New.ItemTime) < datetime(ItemTime.Started) or datetime(New.ItemTime)>datetime(ItemTime.Ends)));
 END;
 
 -- insert on time
 drop trigger if exists correct_bid_time3;
 CREATE TRIGGER  correct_bid_time3
-BEFORE INSERT ON Time
+BEFORE INSERT ON ItemTime
 FOR EACH ROW
 -- raise error if the new time has a bid that begins before its start time or after its end time
 BEGIN
-   SELECT RAISE(rollback, 'Error Inserting Into Time')
+   SELECT RAISE(rollback, 'Error Inserting Into ItemTime')
    WHERE  EXISTS (
-   SELECT * FROM Bids WHERE Bids.ItemID = New.ItemID and (datetime(Bids.Time) < datetime(New.Started) or datetime(Bids.Time)>datetime(New.Ends)));
+   SELECT * FROM Bids WHERE Bids.ItemID = New.ItemID and (datetime(Bids.ItemTime) < datetime(New.Started) or datetime(Bids.ItemTime)>datetime(New.Ends)));
 END;
 ;
 
 --update on time
 drop trigger if exists correct_bid_time4;
 CREATE TRIGGER correct_bid_time4
-BEFORE UPDATE ON Time
+BEFORE UPDATE ON ItemTime
 FOR EACH ROW
 -- raise error if the new time has a bid that begins before its start time or after its end time
 BEGIN
-   SELECT RAISE(rollback, 'Error Updating Time')
+   SELECT RAISE(rollback, 'Error Updating ItemTime')
    WHERE  EXISTS (
-   SELECT * FROM Bids WHERE Bids.ItemID = New.ItemID and (datetime(Bids.Time) < datetime(New.Started) or datetime(Bids.Time)>datetime(New.Ends)));
+   SELECT * FROM Bids WHERE Bids.ItemID = New.ItemID and (datetime(Bids.ItemTime) < datetime(New.Started) or datetime(Bids.ItemTime)>datetime(New.Ends)));
 END;
 
 
@@ -57,23 +57,23 @@ END;
 
 --Insert on Bids violation
 INSERT INTO Bids
-('ItemID', 'BidderID','Time','Amount')
+('ItemID', 'BidderID','ItemTime','Amount')
 SELECT 1043495702, "watchdenmark", "2013-12-13 20:40:08", 30.00;
 -- No Fix Needed
 
 -- Update to Bids Violation
 UPDATE  Bids
-SET Time  = "2013-12-10 12:40:07"
+SET ItemTime  = "2013-12-10 12:40:07"
 WHERE ItemID = 1043495702  and  Amount = 28.00;
 -- No Fix Needed
 
---Insert into Time
-INSERT INTO Time
+--Insert into ItemTime
+INSERT INTO ItemTime
 ('ItemID','Started','Ends')
 SELECT 1043495702, "2013-12-13 20:40:08", "2014-12-13 20:40:08";
 --no Fix Needed
 
---Update Time
-Update Time
+--Update ItemTime
+Update ItemTime
 SET Ends  = "2000-12-13 20:40:08"
 WHERE ItemID = 1043495702;

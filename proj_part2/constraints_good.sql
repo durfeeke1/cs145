@@ -12,23 +12,23 @@ SELECT "1111111111", "rulabula", "NEW_ITEM", "DESCRIPTION", 1;
 DELETE FROM Item
 WHERE ItemID = 1111111111;
 -- (Bid.itemID and Bid.Amount) is unique and 
---(Bid.ItemID, Bid.Time) is  unique and
+--(Bid.ItemID, Bid.ItemTime) is  unique and
 -- Bid.Item reference a real item and
 --Bid.BidderID references a real user ID
 INSERT INTO Bids
 SELECT "1043374545", "dollface94","2001-03-01 18:10:41", 30.21;
 --
 DELETE FROM Bids
-Where ItemID = "1043374545" and BidderId = "dollface94" and Time = "2001-03-01 18:10:41";
--- Time.Item ID is unique
--- Time.ITem Id references a real user ID
--- Time.Start < Time.End
+Where ItemID = "1043374545" and BidderId = "dollface94" and ItemTime = "2001-03-01 18:10:41";
+-- ItemTime.Item ID is unique
+-- ItemTime.ITem Id references a real user ID
+-- ItemTime.Start < ItemTime.End
 INSERT INTO Item
 SELECT 1111111111, "rulabula", "NEW_ITEM", "DESCRIPTION", 1;
-INSERT INTO Time
+INSERT INTO ItemTime
 SELECT 1111111111,"2001-03-01 18:10:41", "2001-04-01 18:10:41";
 --
-DELETE FROM Time
+DELETE FROM ItemTime
 WHERE ItemID = 1111111111;
 DELETE FROM Item
 WHERE ItemID = 1111111111;

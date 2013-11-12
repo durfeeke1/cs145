@@ -1,5 +1,5 @@
 drop Table User;
-drop Table Time;
+drop Table ItemTime;
 drop Table Item;
 drop Table Price;
 drop Table Categories;

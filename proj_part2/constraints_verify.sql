@@ -11,19 +11,19 @@ GROUP BY ItemID)
 WHERE c1 > 1;
 -- make sure no two bids from the same user on the same item happen at the same time
 SELECT * FROM
-(SELECT count(*) as c1 FROM Bids as I1,Bids as I2 WHERE I1.ItemID =I2.ItemID and I1.BidderID = I2.BidderID and I1.Time = I2.Time and I1.Amount <> I2.Amount)
+(SELECT count(*) as c1 FROM Bids as I1,Bids as I2 WHERE I1.ItemID =I2.ItemID and I1.BidderID = I2.BidderID and I1.ItemTime = I2.ItemTime and I1.Amount <> I2.Amount)
 WHERE c1 > 0;
 --make sure no two bids on the same item happen at the same time
 SELECT * FROM
-(SELECT count(*) as c1 FROM Bids as I1,Bids as I2 WHERE I1.ItemID =I2.ItemID and I1.Time = I2.Time and (I1.Amount <> I2.Amount or I1.BidderID <> I2.BidderID) )
+(SELECT count(*) as c1 FROM Bids as I1,Bids as I2 WHERE I1.ItemID =I2.ItemID and I1.ItemTime = I2.ItemTime and (I1.Amount <> I2.Amount or I1.BidderID <> I2.BidderID) )
 WHERE c1 > 0;
 --make sure no two bids on the same item are for the same amount
 SELECT * FROM
-(SELECT count(*) as c1 FROM Bids as I1,Bids as I2 WHERE I1.ItemID =I2.ItemID and I1.Amount = I2.Amount and (I1.Time <> I2.Time or I1.BidderID <> I2.BidderID) )
+(SELECT count(*) as c1 FROM Bids as I1,Bids as I2 WHERE I1.ItemID =I2.ItemID and I1.Amount = I2.Amount and (I1.ItemTime <> I2.ItemTime or I1.BidderID <> I2.BidderID) )
 WHERE c1 > 0;
--- mkae sure that all Time.ID's are unique
+-- mkae sure that all ItemTime.ID's are unique
 SELECT * FROM
-(SELECT count(*) as c1 FROM Time
+(SELECT count(*) as c1 FROM ItemTime
 GROUP BY ItemID)
 WHERE c1 > 1;
 -- make sure all Price.ItemID's are unique
@@ -44,7 +44,7 @@ WHERE Currently > BuyPrice)
 WHERE c1 > 0;
 -- make sure the start time is less than the end time
 SELECT * FROM
-(SELECT count(*) as c1 FROM Time
+(SELECT count(*) as c1 FROM ItemTime
 WHERE datetime(Started) > datetime(Ends))
 WHERE c1 > 0;
 -- ---------------- R -----------------------------
@@ -54,8 +54,8 @@ SELECT * FROM Item WHERE NOT EXISTS ( SELECT * FROM User WHERE Item.UserID = Use
 SELECT * FROM Bids WHERE NOT EXISTS ( SELECT * FROM User WHERE Bids.BidderID = User.UserID);
 --make sure Bid.itemID references Item.ItemID
 SELECT * FROM Bids WHERE NOT EXISTS ( SELECT * FROM Item WHERE Bids.ItemID = Item.ItemID);
---make sure Time.itemID references Item.ItemID
-SELECT * FROM Time WHERE NOT EXISTS ( SELECT * FROM Item WHERE Time.ItemID = Item.ItemID);
+--make sure ItemTime.itemID references Item.ItemID
+SELECT * FROM ItemTime WHERE NOT EXISTS ( SELECT * FROM Item WHERE ItemTime.ItemID = Item.ItemID);
 --make sure Price.itemID references Item.ItemID
 SELECT * FROM Price WHERE NOT EXISTS ( SELECT * FROM Item WHERE Price.ItemID = Item.ItemID);
 --make sure Category.itemID references Category.ItemID

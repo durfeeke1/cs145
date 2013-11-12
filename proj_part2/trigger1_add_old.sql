@@ -14,14 +14,14 @@ BEGIN
 END;
 -- violation
 INSERT INTO Bids
-('ItemID', 'BidderID','Time','Amount')
+('ItemID', 'BidderID','ItemTime','Amount')
 SELECT 1043495702, "watchdenmark", "2001-12-13 20:40:08", 30.00;
 --verification
 SELECT * FROM Price
 Where ItemID = 1043495702 and Currently = 30.00;
 --Fix 
 DELETE FROM Bids
-Where ItemID = 1043495702 and BidderID = "watchdenmark" and Time = "2001-12-13 20:40:08";
+Where ItemID = 1043495702 and BidderID = "watchdenmark" and ItemTime = "2001-12-13 20:40:08";
 --Fix
 UPDATE PRICE
 SET Currently = 28.00
@@ -53,7 +53,7 @@ SELECT *, "Delete" FROM Price
 Where ItemID = 1043495702 and Currently = 25.00;
 -- Fix
 INSERT INTO Bids
-('ItemID', 'BidderID','Time','Amount')
+('ItemID', 'BidderID','ItemTime','Amount')
 SELECT 1043495702, "allyw1", "2001-12-10 20:40:07", 28.00;
 
 --Update to Bids

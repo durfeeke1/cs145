@@ -4,7 +4,7 @@
 Update User set Location = null where Location = 'NULL';
 Update User set Country = null where Country = 'NULL';
 
-.import items-SQLBULK_TIME.dat Time
+.import items-SQLBULK_TIME.dat ItemTime
 
 .import  items-SQLBULK_ITEM.dat Item
 
