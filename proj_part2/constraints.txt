@@ -1,0 +1,31 @@
+K:
+No two user names can be the same
+The same item cannot be in two separate auctions (i.e. every item is unique)
+No auction may have two bids at the same time
+
+An item can only have one set of time attributes
+An item can only have one set of Price attributes
+
+R:
+The seller of an item must be a user
+A person bidding must be a user
+Every item being bid on must be an actual item
+The time attributes of an auction must correspond to an actual item being sold
+The price attributes of an auction must correspond to an actual item being sold
+The categories of an auction must correspond to an actual item being sold
+
+C:
+The current price is less than or equal to the buy price of an item
+The amount of the first bid on an item must be less than or equal to the current price
+As implied by the two previous statements the first bid must be less than or equal to the buy price of an item
+The start time is before the end time in every auction
+
+Trigger:
+The amount of the current bid of an auction is the actual amount of the current bid on auction or the FirstBid
+A new bid must be larger than all previous bids
+As implied by the last statement the amount of each bid on an item is unique
+This also implies, along with the second trigger that each bid is less than the current price
+The time of a bid is after the start time of the auction the bid is for
+The time of a bid is before the end time of the auction the bid is for
+The number of bids in an auction corresponds to the actual number of bids in that auction
+There are no bids after the current time
