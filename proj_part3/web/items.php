@@ -1,4 +1,4 @@
-<?php # items.php - query items by itemid
+<?php # browseItems.php - query items by itemid
   session_start();
   include ('./sqlitedb.php');
   include ('./navbar.html');
@@ -10,13 +10,16 @@
   </head>
 
   <center>
-    <h3> Auction </h3> 
+    <h3> Auctions </h3> 
+
+ <form method="POST" action="bidItems.php">
+  <?php
+    include ('./selectitem.html');
+  ?>
+  </form>
+
 <?php
   if(isset($_SESSION['selectedItem'])){
-    /*
-    echo " Setting Selected Item";
-    echo "<br/>";
-    */
     $selectedItem = $_SESSION['selectedItem'];
     $selectedName = $_SESSION['selectedName'];
     $selectedDescription = $_SESSION['selectedDescription'];
@@ -26,139 +29,120 @@
     $selectedStatus = $_SESSION['selectedStatus'];
     $selectedWinner = $_SESSION['selectedWinner'];
     $selectedPrice = $_SESSION['selectedPrice'];
+    $selectedBuyPrice = $_SESSION['selectedBuyPrice'];
+    $selectedBidsArray = $_SESSION['selectedBidsArray'];
+    $selectedFirstBid = $_SESSION['selectedFirstBid'];
   }
-  else{
-  
-  }
-  /*
-  echo "<br/>";
-  echo "SELCTED ITEM DEFAULT: "."$selectedItem";
-  echo "<br/>";
-  */
-  if(!($_POST["enterCategory"]=="") || 
-     !($_POST["enterMaxPrice"]=="") || 
-     !($_POST["enterStatus"]=="")){
-
+ 
+  if(!($_POST["enterBid"] == "") || 
+     !($_POST["enterBidderID"] == "")){
     try{
 
-      $category = $_POST["enterCategory"];
-      $maxPrice = $_POST["enterMaxPrice"];
-      $status = $_POST["enterStatus"];
-    
-      $categoryB = !($category=="");
-      $maxPriceB = !($maxPrice=="");
-      $statusB = !($status=="");
+      //Get Bid from Form
+      $Bid = $_POST["enterBid"];
+      //Convert Bid to Float
+      $Bid = floatval($Bid);
+      //Round
+      $Bid = round($Bid,2);
+      
+      //Get Bidder ID From Form
+      $BidderID = $_POST["enterBidderID"];
+      
+      //Make sure Both Are Given
+      if(($_POST["enterBid"] == "") || 
+         ($_POST["enterBidderID"] == "")){
+             throw new Exception("You Must Enter Both UserID and Bid");
+         }
+      //Make Sure Auction Being Bid On Is Open
+      if($selectedStatus == "Closed"){
+             throw new Exception("You Cannot Bid On A Closed Auction");
+         }
+      //Make Sure New Bid Is Larger Than Asking Price
+      if($Bid <= $selectedPrice){
+        throw new Exception("New Bids Must Be Greater Than the Current Asking Price!");
+      } 
+      //Make sure New Bid Is Later Than Old Bid
+      //NOTE: This does not need to be handled if time is only allowed to go forward
 
-      $searchConstraints = "";
-      $searchArray = array();
+      // Start a transaction
+      $db->beginTransaction();
 
-      if($categoryB){
-        $searchArray[':category'] = $category;
-        $searchConstraints = " and Category = :category";
-      }
-      if($maxPriceB){
-        $searchArray[':maxPrice'] = floatval($maxPrice);
-        $searchConstraints = "$searchConstraints"." and "."
-                                 Currently < :maxPrice";
-      }
-      if($statusB){
-        if($status == "Open"){
-          $searchConstraints = "$searchConstraints"." and "."
-                                datetime(curr_time) > datetime(Started) and 
-                                datetime(curr_time) < datetime(Ends)";
-        }
-       elseif($status == "Closed"){
-         $searchConstraints = "$searchConstraints"." and "."
-                                (datetime(curr_time) < datetime(Started) or 
-                                datetime(curr_time) > datetime(Ends))";
-       } 
-       else{
-         throw new Exception("Status must be \"Open\" or \"Closed\"");
-       }
-    }
-    
-    //Query For Items by selected Attributes
-    $com1 = "SELECT DISTINCT Item.ItemID, Name, Currently FROM Item, Price, ItemTime, Time, Categories 
-             WHERE Item.ItemID = Price.ItemID and 
-                   Item.ItemID = ItemTime.ItemID and
-                   Item.ItemID = Categories.ItemID"
-                   .$searchConstraints."
-             ORDER BY Item.ItemID 
-             LIMIT 100";
+      $com0 = "SELECT curr_time FROM Time";
+      $result0 = $db->prepare($com0);
+      $result0->execute();
 
-    /*
-    echo "<br/>";
-    echo $com1;
-    echo "<br/>";
-    */
-
-    $result1 = $db->prepare($com1);
-    $result1->execute($searchArray);
-     
+      $row0 = $result0->fetch();
+      $Time = htmlspecialchars($row0["curr_time"]); 
+      
+      //Query Insert Bid  
+      $com1 = "INSERT INTO Bids ('ItemID','BidderID','ItemTime','Amount') 
+               SELECT :ItemID, :BidderID, :Time, :Amount";
+      $result1 = $db->prepare($com1);
+      $result1->execute(array(':ItemID' => $selectedItem, 
+                             ':BidderID' => $BidderID,
+                             ':Time' => $Time,
+                             ':Amount' => $Bid));
+      //Run Query 
+      $db->commit();
+      
     }catch (Exception $e) {
         try {
           $db->rollBack();
         } catch (PDOException $pe) {}
-        echo "Transaction failed: " . $e->getMessage();
+        echo "Bid On Item Failed: " . $e->getMessage();
         $failure = 1;
-    }
-
-   $itemsArrays = $result1->fetchAll();
-   
-   foreach ($itemsArrays as $i){
-      echo "<br/>";
-      echo "ItemID: ".htmlspecialchars($i["ItemID"])." ";
-      echo "Name: ".htmlspecialchars($i["Name"])." ";
-      echo "Current Price: ".htmlspecialchars($i["Currently"])." ";
-      echo "<br/>";
-   } 
-
+    } 
+  
   }
-  if(!($_POST["enterItemID"]=="")){
+
+  if(!($_POST["enterItemID"]=="")||
+     (!($_POST["enterBid"] == "") &&
+     !($_POST["enterBidderID"] == ""))){
     try{
    
       // Start a transaction
       $db->beginTransaction();
 
-      //Get Item ID from Form
-      //$ItemID = '1043374545';
-      $ItemID = $_POST["enterItemID"];
-      /*
-      echo "<br/>";
-      echo "ItemID Selected: "."$ItemID";
-      echo "<br/>";
-      */
+      //Used Session ItemID If It Is Blank During Bid
+      if(!($_POST["enterBid"] == "") && 
+          ($_POST["enterItemID"]=="")){
+        $ItemID = $selectedItem;
+      }
+      //Otherwise Get From Form
+      else{
+        $ItemID = $_POST["enterItemID"];
+      }
 
       //Query For item by Item ID 
       $com1 = "SELECT * FROM Item WHERE ItemID = :ItemID";
       $result1 = $db->prepare($com1);
       $result1->execute(array(':ItemID' => $ItemID));
- 
+      //Query for ItemTime By ItemID 
       $com2 = "SELECT * FROM ItemTime Where ItemID = :ItemID";
       $result2 = $db->prepare($com2);
       $result2->execute(array(':ItemID' => $ItemID));
-
+      //Query For Current Time
       $com3 = "SELECT curr_time FROM Time";
       $result3 = $db->prepare($com3);
       $result3->execute();
-
-      $com4 = "SELECT * FROM Bids Where ItemID = :ItemID
-               and NOT EXISTS (SELECT * FROM Bids as B2 WHERE B2.ItemID = ItemID 
-                                                          and B2.Amount > Amount)";
-
+      //Query For Bid Of Winner
+      $com4 = "SELECT * FROM Bids WHERE ItemID = :ItemID
+               and NOT EXISTS (SELECT * FROM Bids as B2 WHERE B2.ItemID = Bids.ItemID 
+                                                          and B2.Amount > Bids.Amount)";
       $result4 = $db->prepare($com4);
       $result4->execute(array(':ItemID' => $ItemID)); 
-
+      //Query For Price Attributes By ItemID
       $com5 = "SELECT * FROM Price WHERE ItemID = :ItemID";
       $result5 = $db->prepare($com5);
       $result5->execute(array(':ItemID' => $ItemID));
+      //Query For All Bids By ItemID
+      $com6 = "SELECT * FROM Bids WHERE ItemID = :ItemID ORDER BY Amount LIMIT 100";
+      $result6 = $db->prepare($com6);
+      $result6->execute(array(':ItemID' => $ItemID));
 
       //Run Query 
       $db->commit();
-      /*
-      echo "Success! Query for item issued successfully";
-      echo "<br/>";
-      */
+    
     }catch (Exception $e) {
         try {
           $db->rollBack();
@@ -167,7 +151,7 @@
         $failure = 1;
     } 
   
-    //Dispaly Result Of Query
+    //Display Result Of Query
     $row = $result1->fetch();
     $selectedItem = htmlspecialchars($row["ItemID"]);
     $selectedName = htmlspecialchars($row["Name"]); 
@@ -180,26 +164,47 @@
     $currTimeRow = $result3->fetch();
     $Time = htmlspecialchars($currTimeRow["curr_time"]);
 
-    $bidsRow = $result4->fetch();
+    $winnerRow = $result4->fetch();
 
     $priceRow = $result5->fetch();
     $selectedPrice = htmlspecialchars($priceRow["Currently"]);
+    $selectedBuyPrice = htmlspecialchars($priceRow["BuyPrice"]);
+    $selectedFirstBid = htmlspecialchars($priceRow["FirstBid"]);
+
+    $selectedBidsArray = $result6->fetchAll();
 
     if(!$selectedItem){
       echo "Sorry, there is no item with ItemID: "."$ItemID";
       echo "<br/>";
     }
     else{
+      //Current Time Must Be Between Start and End Time of Auction
       if(strtotime($Time) > strtotime($selectedStarted) && 
          strtotime($Time) < strtotime($selectedEnds)){
-            $selectedStatus = "Open";
+        //If Buy Price Is Matched Then The Auction Is Closed
+        if($selectedPrice == $selectedBuyPrice){
+          $selectedStatus = "Closed";
+        }
+        else{
+          $selectedStatus = "Open";
+        }
       }
       else{
-         $selectedStatus = "Closed";
-         $selectedWinner = htmlspecialchars($bidsRow["BidderID"]);
-       }
+        $selectedStatus = "Closed";
+      }
+      //Only Display Winnder If the Auction Is Closed 
+      if($selectedStatus == "Closed"){
+        $selectedWinner = htmlspecialchars($winnerRow["BidderID"]);
+        if(!($selectedWinner)){
+          $selectedWinnder = "No One Bid On Item :(";
+         }
+      }
+      else{
+        $selectedWinner = "";
+      }
     }
-
+    
+    //Set Session Variables
     $_SESSION['selectedStarted'] = $selectedStarted;
     $_SESSION['selectedEnds'] = $selectedEnds;
     $_SESSION['Time'] = $Time;
@@ -209,82 +214,15 @@
     $_SESSION['selectedName'] = $selectedName;
     $_SESSION['selectedDescription'] = $selectedDescription;
     $_SESSION['selectedPrice'] = $selectedPrice;
-    /*
-    echo "</br>";
-    echo "Session selected Item Set To: ".$_SESSION['selectedItem'];
-    echo "</br>";
-    */
-  }
-  if(!($_POST["enterBid"] == "") || !($_POST["enterBidderID"] == "")){
-    try{
-
-      //Get Bid from Form
-      //$ItemID = '1043374545';
-      $Bid = $_POST["enterBid"];
-      $BidderID = $_POST["enterBidderID"];
-      if(($_POST["enterBid"] == "") || 
-         ($_POST["enterBidderID"] == "")){
-             throw new Exception("You Must Enter Both UserID and Bid");
-         }
-      if($selectedStatus == "Closed"){
-             throw new Exception("You Cannot Bid On A Closed Auction");
-         }
-      if($Bid < $selectedPrice){
-        throw new Exception("New Bids Must Be Greater Than the Current Asking Price!");
-      } 
-
-
-
-      // Start a transaction
-      $db->beginTransaction();
-
-      $com0 = "SELECT curr_time FROM Time";
-      $result0 = $db->prepare($com0);
-      $result0->execute();
-
-      $row0 = $result0->fetch();
-      $Time = htmlspecialchars($row0["curr_time"]); 
-      
-      /*
-      echo "<br/>";
-      echo "UserID :"."$BidderID";
-      echo "<br/>";
-      echo "Bid Amount: "."$Bid";
-      echo "<br/>";
-      echo "Current Time: "."$Time";      
-      echo "<br/>";
-      */
-
-      //Query Insert Bid  
-      $com1 = "INSERT INTO Bids ('ItemID','BidderID','ItemTime','Amount') 
-               SELECT :ItemID, :BidderID, :Time, :Amount";
-      $result1 = $db->prepare($com1);
-      $result1->execute(array(':ItemID' => $selectedItem, 
-                             ':BidderID' => $BidderID,
-                             ':Time' => $Time,
-                             ':Amount' => $Bid));
-      //Run Query 
-      $db->commit();
-      
-      /* 
-      echo "Success! Query to Insert Bid Issued Successfully";
-      echo "<br/>";
-      */
-
-    }catch (Exception $e) {
-        try {
-          $db->rollBack();
-        } catch (PDOException $pe) {}
-        echo "Bid On Item Failed: " . $e->getMessage();
-        $failure = 1;
-    } 
-  
+    $_SESSION['selectedBuyPrice'] = $selectedBuyPrice;
+    $_SESSION['selectedFirstBid'] = $selectedFirstBid;
+    $_SESSION['selectedBidsArray'] = $selectedBidsArray;
   }
   if(!($failure)){
     if($selectedItem){   
-      echo "Selected Item: ";
+      echo "SELECTED ITEM: ";
       echo "<br/>";
-
+      echo "<br/>";
       echo "ItemID : "."$selectedItem";
       echo "<br/>";
       echo "Started: "."$selectedStarted"." ";
@@ -300,15 +238,50 @@
          echo "Price Paid: "."$selectedPrice";
       }
       else{
-        echo "Current Asking Price: "."$selectedPrice";
+        echo "First Bid: "."$selectedFirstBid ";
+        echo "Current Asking Price: "."$selectedPrice ";
+        if($selectedBuyPrice){
+          echo "Buy Price: "."$selectedBuyPrice";
+        }
       }
       echo "<br/>";
       echo "Name : "."$selectedName";
       echo "<br/>";
       echo "Description : "."$selectedDescription";
       echo "<br/>";
+      echo "<br/>";
+      echo "BIDS ON SELECTED ITEM:";
+      echo "<br/>";
+      if($selectedBidsArray){
+        foreach ($selectedBidsArray as $i){
+          echo "<br/>";
+          echo "Bidder: ".htmlspecialchars($i["BidderID"])." ";
+          echo "Time: ".htmlspecialchars($i["ItemTime"])." ";
+          if($selectedWinner){
+            echo "Price Paid: ".htmlspecialchars($i["Amount"])." ";
+          }else{
+            echo "Bid Amount: ".htmlspecialchars($i["Amount"])." ";
+            echo "<br/>";
+          }
+        }
+      }
+      else{
+        echo "No Bids Yet..";
+      }
     }
-    if($Bid){
+  }
+ ?>
+
+ <form method="POST" action="bidItems.php">
+  <?php
+    //include ('./browseItem.html');
+    //include ('./selectitem.html');
+    include ('./insertbid.html');
+  ?>
+  </form>
+
+  <?php
+    /*if($Bid){
       echo "<br/>";
       echo "Your UserID :"."$BidderID";
       echo "<br/>";
@@ -316,20 +289,10 @@
       echo "<br/>";
       echo "Current Time: "."$Time";      
       echo "<br/>";
-
-      echo "Your Bid For The Selected Item : "."$Bid";
-      echo "<br/>";
     }
-  }
+    */
   $db = null;
-?>
- <form method="POST" action="items.php">
-  <?php
-    include ('./browseItem.html');
-    include ('./selectitem.html');
-    include ('./insertbid.html');
   ?>
-  </form>
+
 </center>
 </html>
-
