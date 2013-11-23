@@ -1,0 +1,15 @@
+#!/bin/bash
+rm -f *items*
+python skeleton_parser.py /usr/class/cs145/project/ebay_data/items-*.xml
+sort  items-SQLBULK_USERS.dat | uniq | tee items-SQLBULK_USERS_TEMP.dat
+sort  items-SQLBULK_TIME.dat | uniq | tee items-SQLBULK_TIME_TEMP.dat 
+sort  items-SQLBULK_ITEM.dat | uniq | tee items-SQLBULK_ITEM_TEMP.dat 
+sort  items-SQLBULK_PRICE.dat | uniq | tee items-SQLBULK_PRICE_TEMP.dat
+sort  items-SQLBULK_CAT.dat | uniq | tee items-SQLBULK_CAT_TEMP.dat 
+sort  items-SQLBULK_BID.dat | uniq | tee items-SQLBULK_BID_TEMP.dat
+mv items-SQLBULK_USERS_TEMP.dat items-SQLBULK_USERS.dat
+mv items-SQLBULK_TIME_TEMP.dat items-SQLBULK_TIME.dat 
+mv items-SQLBULK_ITEM_TEMP.dat items-SQLBULK_ITEM.dat 
+mv items-SQLBULK_PRICE_TEMP.dat items-SQLBULK_PRICE.dat
+mv items-SQLBULK_CAT_TEMP.dat items-SQLBULK_CAT.dat
+mv items-SQLBULK_BID_TEMP.dat items-SQLBULK_BID.dat

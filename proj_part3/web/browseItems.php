@@ -4,11 +4,6 @@
   include ('./navbar.html');
 ?>
 
- <form method="POST" action="browseItems.php">
-  <?php
-    include ('./browseItem.html');
-  ?>
-  </form>
 
 <html>
   <head>
@@ -17,20 +12,36 @@
 
   <center>
     <h3> Browse  Auctions </h3>
+ 
+  <form method="POST" action="browseItems.php">
+    <?php
+      include ('./browseItems.html');
+    ?>
+  </form>
 <?php
 
   if(!($_POST["enterCategory"]=="") ||
      !($_POST["enterMaxPrice"]=="") ||
+     !($_POST["enterMinPrice"]=="") ||
      !($_POST["enterStatus"]=="")){
 
     try{
 
       $category = $_POST["enterCategory"];
       $maxPrice = $_POST["enterMaxPrice"];
+      $minPrice = $_POST["enterMinPrice"];
       $status = $_POST["enterStatus"];
+      //Allows you to find all strings that contain category
+      $category = "%"."$category"."%";
+
+      if((!(is_numeric($maxPrice)) && $maxPrice != "") ||
+	 (!(is_numeric($minPrice)) && $minPrice != "")){
+        throw new Exception("Max Price and Min Price Must Be A Number");
+      }
 
       $categoryB = !($category=="");
       $maxPriceB = !($maxPrice=="");
+      $minPriceB = !($minPrice=="");
       $statusB = !($status=="");
 
       $searchConstraints = "";
@@ -45,11 +56,17 @@
         $searchConstraints = "$searchConstraints"." and "."
                                  Currently < :maxPrice";
       }
+      if($minPriceB){
+        $searchArray[':minPrice'] = floatval($minPrice);
+        $searchConstraints = "$searchConstraints"." and "."
+                                 Currently > :minPrice";
+      }
       if($statusB){
         if($status == "Open"){
           $searchConstraints = "$searchConstraints"." and "."
                                 datetime(curr_time) > datetime(Started) and 
-                                datetime(curr_time) < datetime(Ends)";
+                                datetime(curr_time) < datetime(Ends) and 
+				Currently <> BuyPrice";
         }
        elseif($status == "Closed"){
          $searchConstraints = "$searchConstraints"." and "."
@@ -62,7 +79,7 @@
     }
 
     //Query For Items by selected Attributes
-    $com1 = "SELECT DISTINCT Item.ItemID, Name, Currently FROM Item, Price, ItemTime, Time, Categories 
+    $com1 = "SELECT DISTINCT Item.ItemID, Name, Currently, BuyPrice FROM Item, Price, ItemTime, Time, Categories 
              WHERE Item.ItemID = Price.ItemID and 
                    Item.ItemID = ItemTime.ItemID and
                    Item.ItemID = Categories.ItemID"
@@ -91,9 +108,9 @@
 
    foreach ($itemsArrays as $i){
       echo "<br/>";
-      echo "ItemID: ".htmlspecialchars($i["ItemID"])." ";
+      echo "<center> ItemID: ".htmlspecialchars($i["ItemID"])." ";
       echo "Name: ".htmlspecialchars($i["Name"])." ";
-      echo "Current Price: ".htmlspecialchars($i["Currently"])." ";
+      echo "Current Price: ".htmlspecialchars($i["Currently"])."</center>";
       echo "<br/>";
    }
   }

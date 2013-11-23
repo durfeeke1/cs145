@@ -2,6 +2,33 @@
   session_start();
   include ('./sqlitedb.php');
   include ('./navbar.html');
+  
+  $failure = 0;
+  try{
+
+      // Start a transaction
+      $db->beginTransaction();
+      $com00 = "SELECT curr_time FROM Time";
+      $result00 = $db->prepare($com00);
+      $result00->execute();
+
+      $row00 = $result00->fetch();
+      $timeInit = htmlspecialchars($row00["curr_time"]); 
+      //Run Query 
+      $db->commit();
+      
+    }catch (Exception $e) {
+        try {
+          $db->rollBack();
+        } catch (PDOException $pe) {}
+        echo "Getting Time Value Failed: " . $e->getMessage();
+        $failure = 1;
+    }
+
+    if($timeInit != $_SESSION['Time'] &&
+       $_SESSION['Time'] != ""){
+      $failure = 1;
+    }
 ?>
 
 <html>
@@ -14,13 +41,15 @@
 
  <form method="POST" action="bidItems.php">
   <?php
-    include ('./selectitem.html');
+    include ('./selectItem.html');
   ?>
   </form>
 
 <?php
-  if(isset($_SESSION['selectedItem'])){
+  if(isset($_SESSION['selectedItem']) &&
+    !($failure)){
     $selectedItem = $_SESSION['selectedItem'];
+    $selectedSeller = $_SESSION['selectedSeller'];
     $selectedName = $_SESSION['selectedName'];
     $selectedDescription = $_SESSION['selectedDescription'];
     $selectedStarted = $_SESSION['selectedStarted'];
@@ -32,14 +61,19 @@
     $selectedBuyPrice = $_SESSION['selectedBuyPrice'];
     $selectedBidsArray = $_SESSION['selectedBidsArray'];
     $selectedFirstBid = $_SESSION['selectedFirstBid'];
+    $selectedNumberOfBids = $_SESSION['selectedNumberOfBids'];
   }
  
-  if(!($_POST["enterBid"] == "") || 
-     !($_POST["enterBidderID"] == "")){
+  if((!($_POST["enterBid"] == "") || 
+     !($_POST["enterBidderID"] == "")) &&
+     !($failure)){
     try{
 
       //Get Bid from Form
       $Bid = $_POST["enterBid"];
+      if(!(is_numeric($Bid))){
+        throw new Exception("Bid Must be a Number!");
+      }
       //Convert Bid to Float
       $Bid = floatval($Bid);
       //Round
@@ -47,20 +81,25 @@
       
       //Get Bidder ID From Form
       $BidderID = $_POST["enterBidderID"];
-      
       //Make sure Both Are Given
       if(($_POST["enterBid"] == "") || 
          ($_POST["enterBidderID"] == "")){
              throw new Exception("You Must Enter Both UserID and Bid");
          }
+
+      if($selectedItem==""){
+         throw new Exception("Item Must Be Selected Before It Can Be Bid On!");
+      } 
+
       //Make Sure Auction Being Bid On Is Open
       if($selectedStatus == "Closed"){
              throw new Exception("You Cannot Bid On A Closed Auction");
          }
       //Make Sure New Bid Is Larger Than Asking Price
-      if($Bid <= $selectedPrice){
-        throw new Exception("New Bids Must Be Greater Than the Current Asking Price!");
-      } 
+      if($Bid <= $selectedPrice || ( $Bid > $selectedBuyPrice && $selectedBuyPrice )){
+        throw new Exception("New Bids Must Be Greater Than the Current Asking Price
+                             and Less Than the Selected Buy Price!");
+      }
       //Make sure New Bid Is Later Than Old Bid
       //NOTE: This does not need to be handled if time is only allowed to go forward
 
@@ -95,9 +134,10 @@
   
   }
 
-  if(!($_POST["enterItemID"]=="")||
+  if((!($_POST["enterItemID"]=="")||
      (!($_POST["enterBid"] == "") &&
-     !($_POST["enterBidderID"] == ""))){
+     !($_POST["enterBidderID"] == ""))) &&
+     !($failure)){
     try{
    
       // Start a transaction
@@ -154,9 +194,11 @@
     //Display Result Of Query
     $row = $result1->fetch();
     $selectedItem = htmlspecialchars($row["ItemID"]);
+    $selectedSeller = htmlspecialchars($row["UserID"]);
     $selectedName = htmlspecialchars($row["Name"]); 
     $selectedDescription = htmlspecialchars($row["Description"]); 
-   
+    $selectedNumberOfBids = htmlspecialchars($row["NumberOfBids"]);  
+ 
     $timeRow = $result2->fetch();
     $selectedStarted = htmlspecialchars($timeRow["Started"]);
     $selectedEnds = htmlspecialchars($timeRow["Ends"]);
@@ -195,9 +237,9 @@
       //Only Display Winnder If the Auction Is Closed 
       if($selectedStatus == "Closed"){
         $selectedWinner = htmlspecialchars($winnerRow["BidderID"]);
-        if(!($selectedWinner)){
-          $selectedWinnder = "No One Bid On Item :(";
-         }
+        //if(!($selectedWinner)){
+        //  $selectedWinner = "No One Bid On Item :(";
+        // }
       }
       else{
         $selectedWinner = "";
@@ -211,31 +253,35 @@
     $_SESSION['selectedStatus'] = $selectedStatus;
     $_SESSION['selectedWinner'] = $selectedWinner;
     $_SESSION['selectedItem'] = $selectedItem;
+    $_SESSION['selectedSeller'] = $selectedSeller;
     $_SESSION['selectedName'] = $selectedName;
     $_SESSION['selectedDescription'] = $selectedDescription;
     $_SESSION['selectedPrice'] = $selectedPrice;
     $_SESSION['selectedBuyPrice'] = $selectedBuyPrice;
     $_SESSION['selectedFirstBid'] = $selectedFirstBid;
     $_SESSION['selectedBidsArray'] = $selectedBidsArray;
+    $_SESSION['selectedNumberOfBids'] = $selectedNumberOfBids;
   }
   if(!($failure)){
     if($selectedItem){   
-      echo "SELECTED ITEM: ";
+      echo "<center> SELECTED ITEM: </center>";
       echo "<br/>";
       echo "<br/>";
-      echo "ItemID : "."$selectedItem";
+      echo "<center> ItemID : "."$selectedItem"."</center>";
       echo "<br/>";
-      echo "Started: "."$selectedStarted"." ";
-      echo "Ends: "."$selectedEnds";
+      echo "<center> Seller : "."$selectedSeller"."</center>";
       echo "<br/>";
-      echo "Current Time: "."$Time";
-      echo "<br>";
-      echo "Auction Status: "."$selectedStatus";
+      echo "<center> Started: "."$selectedStarted".".</center>";
+      echo "<center> Ends: "."$selectedEnds"."</center>";
+      echo "<br/>";
+      //echo "Current Time: "."$Time";
+      //echo "<br>";
+      echo "<center> Auction Status: "."$selectedStatus"."</center>";
       echo "<br/>";
       if($selectedWinner){
-         echo "Auction Winner: "."$selectedWinner";
+         echo "<center> Auction Winner: "."$selectedWinner"."</center>";
          echo "<br/>";
-         echo "Price Paid: "."$selectedPrice";
+         echo "<center> Price Paid: "."$selectedPrice"."</center>";
       }
       else{
         echo "First Bid: "."$selectedFirstBid ";
@@ -247,22 +293,19 @@
       echo "<br/>";
       echo "Name : "."$selectedName";
       echo "<br/>";
-      echo "Description : "."$selectedDescription";
+      echo "<center> Description : "."$selectedDescription"."</center>";
       echo "<br/>";
+      echo "<center> Number of Bids : "."$selectedNumberOfBids"."</center>";
       echo "<br/>";
-      echo "BIDS ON SELECTED ITEM:";
+      echo "<center> BIDS ON SELECTED ITEM:"."</center>";
       echo "<br/>";
       if($selectedBidsArray){
         foreach ($selectedBidsArray as $i){
           echo "<br/>";
-          echo "Bidder: ".htmlspecialchars($i["BidderID"])." ";
+          echo "<center> Bidder: ".htmlspecialchars($i["BidderID"])."";
           echo "Time: ".htmlspecialchars($i["ItemTime"])." ";
-          if($selectedWinner){
-            echo "Price Paid: ".htmlspecialchars($i["Amount"])." ";
-          }else{
-            echo "Bid Amount: ".htmlspecialchars($i["Amount"])." ";
-            echo "<br/>";
-          }
+          echo "Bid Amount: ".htmlspecialchars($i["Amount"])." ";
+          echo "</center>";
         }
       }
       else{
@@ -270,28 +313,34 @@
       }
     }
   }
+  else{
+    $_SESSION['selectedItem'] = "";
+    $_SESSION['selectedSeller'] = "";
+    $_SESSION['selectedName'] = "";
+    $_SESSION['selectedDescription'] = "";
+    $_SESSION['selectedStarted'] = "";
+    $_SESSION['selectedEnds'] = "";
+    $_SESSION['Time'] = "";
+    $_SESSION['selectedStatus'] = "";
+    $_SESSION['selectedWinner'] = "";
+    $_SESSION['selectedPrice'] = "";
+    $_SESSION['selectedBuyPrice'] = "";
+    $_SESSION['selectedBidsArray'] = "";
+    $_SESSION['selectedFirstBid'] = "";
+    $_SESSION['selectedNumberOfBids'] = "";
+  }
  ?>
 
  <form method="POST" action="bidItems.php">
   <?php
     //include ('./browseItem.html');
     //include ('./selectitem.html');
-    include ('./insertbid.html');
+    include ('./insertBid.html');
   ?>
   </form>
 
   <?php
-    /*if($Bid){
-      echo "<br/>";
-      echo "Your UserID :"."$BidderID";
-      echo "<br/>";
-      echo "Your Bid Amount On Selected Item: "."$Bid";
-      echo "<br/>";
-      echo "Current Time: "."$Time";      
-      echo "<br/>";
-    }
-    */
-  $db = null;
+    $db = null;
   ?>
 
 </center>
